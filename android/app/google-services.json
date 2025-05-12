@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "931934896295",
+    "project_id": "ngoproject-2458e",
+    "storage_bucket": "ngoproject-2458e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:931934896295:android:7c7e36d31c33c369165b82",
+        "android_client_info": {
+          "package_name": "com.example.localloop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJgptTmzRO0e8oaRG3Z1rlNo2CoXjF060"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
