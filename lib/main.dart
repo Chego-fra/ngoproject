@@ -1,6 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:localloop/firebase_options.dart';
+import 'package:localloop/screens/admin/admin_dashboard.dart';
+import 'package:localloop/screens/auth/login_screen.dart';
+import 'package:localloop/screens/ngo/ngo_dashboard.dart';
+import 'package:localloop/screens/volunteer/voluteer_dashboard.dart';
 
 
 void main() async {
@@ -14,15 +19,18 @@ class LocalLoopApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'LocalLoop',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-      ),
-      home: const Scaffold(
-        body: Center(child: Text('Welcome to LocalLoop')),
-      ),
+    return  MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Authentication',
+      theme:  ThemeData(useMaterial3: true),
+    initialRoute: FirebaseAuth.instance.currentUser  == null ? 'login' : 'home',
+    routes: {
+      '/login':(context) =>  LoginScreen(),
+      '/admin':(context) => const  AdminHome(),
+      '/ngo':(context) => const NgoHome(),
+      '/voluteer':(context) => const VolunteerHome(),
+    },
+    home:  LoginScreen(),
     );
   }
 }

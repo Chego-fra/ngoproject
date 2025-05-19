@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:localloop/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,95 +10,89 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final AuthService _authService = AuthService();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController nameController = TextEditingController();
-  String selectedRole = 'volunteer'; // Default role
+  final emailCtrl = TextEditingController();
+  final passCtrl = TextEditingController();
+  final String defaultRole = 'voluteer';
 
-  bool isLoading = false;
-  String error = '';
 
-  void handleRegister() async {
-    setState(() {
-      isLoading = true;
-      error = '';
-    });
+  Future<void> registerUser() async {
+    try {
+      final userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailCtrl.text.trim(),
+        password: passCtrl.text.trim(),
+      );
 
-    final user = await _authService.registerWithEmail(
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
+      await userCred.user!.sendEmailVerification();
 
-    setState(() => isLoading = false);
-
-    if (user != null) {
-      // TODO: Save user info to Firestore
-      print("Registered: ${user.uid}");
-    } else {
-      setState(() {
-        error = 'Registration failed. Try again.';
+      await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).set({
+        'email': emailCtrl.text.trim(),
+        'role': defaultRole,
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification email sent. Please verify your email before logging in.')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Register failed: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(colors: [Colors.purpleAccent, Colors.deepPurple]),
+        ),
         child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                Text("Register", style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedRole,
-                  items: const [
-                    DropdownMenuItem(value: 'volunteer', child: Text('Volunteer')),
-                    DropdownMenuItem(value: 'ngo', child: Text('NGO / Organizer')),
-                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                  ],
-                  onChanged: (val) {
-                    setState(() => selectedRole = val ?? 'volunteer');
-                  },
-                  decoration: const InputDecoration(labelText: 'Role'),
-                ),
-                const SizedBox(height: 24),
-                if (error.isNotEmpty)
-                  Text(error, style: const TextStyle(color: Colors.red)),
-                if (isLoading)
-                  const CircularProgressIndicator()
-                else
+          child: Card(
+            elevation: 10,
+            margin: const EdgeInsets.symmetric(horizontal: 30),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Register', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: emailCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: Icon(Icons.lock),
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: handleRegister,
+                    onPressed: registerUser,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                     child: const Text('Register'),
                   ),
-                const SizedBox(height: 16),
-                TextButton(
+                  TextButton(
                   onPressed: () {
-                    Navigator.pop(context); // Back to login
+                    Navigator.pop(context); // Go back to login screen
                   },
                   child: const Text("Already have an account? Login"),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
