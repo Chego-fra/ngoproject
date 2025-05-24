@@ -43,7 +43,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.purpleAccent, Colors.deepPurple]),
+          gradient: LinearGradient(colors: [Color(0xFF43cea2), Color(0xFF185a9d)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          ),
+          
         ),
         child: Center(
           child: Card(

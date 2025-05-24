@@ -1,32 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:localloop/screens/admin/%20manage_users_screen.dart';
-import 'package:localloop/screens/admin/role_chart_screen.dart';
+import 'package:localloop/charts/chart.dart';
 
+import 'role_count.dart'; // Your RoleCount class
 
-class AdminHome extends StatelessWidget {
+class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<_AdminFeature> features = [
-      _AdminFeature(
-        title: 'Manage Users',
-        icon: Icons.group,
-        screen: const ManageUsersScreen(),
-      ),
-        _AdminFeature(
-    title: 'User Role Stats',  // 👈 New chart feature
-    icon: Icons.bar_chart,
-    screen: const RoleChartScreen(),
-  ),
-      // Add more features/screens here
-      // Example:
-      // _AdminFeature(title: 'Reports', icon: Icons.insert_chart, screen: ReportsScreen()),
-    ];
+  State<AdminHome> createState() => _AdminHomeState();
+}
 
+class _AdminHomeState extends State<AdminHome> {
+  Future<List<RoleCount>> fetchRoleCounts() async {
+    final snapshot = await FirebaseFirestore.instance.collection('users').get();
+    final Map<String, int> roleMap = {
+      'admin': 0,
+      'ngo': 0,
+      'voluteer': 0,
+    };
+
+    for (final doc in snapshot.docs) {
+      final role = doc['role'] as String;
+      if (roleMap.containsKey(role)) {
+        roleMap[role] = roleMap[role]! + 1;
+      }
+    }
+
+    return roleMap.entries.map((e) => RoleCount(role: e.key, count: e.value)).toList();
+  }
+
+  Future<void> updateUserRole(String userId, String newRole) async {
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'role': newRole,
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Role updated to $newRole')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.deepPurple.withOpacity(0.8),
+        elevation: 0,
         title: const Text("Admin Dashboard"),
         actions: [
           IconButton(
@@ -38,61 +58,94 @@ class AdminHome extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          children: features.map((feature) {
-            return _FeatureCard(feature: feature);
-          }).toList(),
-        ),
-      ),
-    );
-  }
-}
-
-class _AdminFeature {
-  final String title;
-  final IconData icon;
-  final Widget screen;
-
-  _AdminFeature({required this.title, required this.icon, required this.screen});
-}
-
-class _FeatureCard extends StatelessWidget {
-  final _AdminFeature feature;
-
-  const _FeatureCard({required this.feature});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => feature.screen),
-        );
-      },
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 6,
-        color: Colors.blue[50],
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(feature.icon, size: 40, color: Colors.blueAccent),
-              const SizedBox(height: 12),
-              Text(
-                feature.title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-            ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF43cea2), Color(0xFF185a9d)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 70, 12, 12),
+        child: Column(
+          children: [
+            // Chart Section
+            FutureBuilder<List<RoleCount>>(
+              future: fetchRoleCounts(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Chart(roleCounts: snapshot.data!),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // Users List
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                  final users = snapshot.data!.docs;
+
+                  return ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final user = users[index];
+                      final email = user['email'];
+                      final role = user['role'];
+                      final userId = user.id;
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          title: Text(
+                            email,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'Role: $role',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          trailing: DropdownButton<String>(
+                            value: role,
+                            dropdownColor: Colors.deepPurple,
+                            iconEnabledColor: Colors.white,
+                            style: const TextStyle(color: Colors.white),
+                            items: const [
+                              DropdownMenuItem(value: 'voluteer', child: Text('voluteer')),
+                              DropdownMenuItem(value: 'ngo', child: Text('NGO')),
+                              DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                            ],
+                            onChanged: (newRole) {
+                              if (newRole != null && newRole != role) {
+                                updateUserRole(userId, newRole);
+                              }
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
