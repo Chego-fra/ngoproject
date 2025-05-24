@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:localloop/screens/admin/%20manage_users_screen.dart';
+import 'package:localloop/screens/admin/role_chart_screen.dart';
 
 
 class AdminHome extends StatelessWidget {
@@ -14,6 +15,11 @@ class AdminHome extends StatelessWidget {
         icon: Icons.group,
         screen: const ManageUsersScreen(),
       ),
+        _AdminFeature(
+    title: 'User Role Stats',  // 👈 New chart feature
+    icon: Icons.bar_chart,
+    screen: const RoleChartScreen(),
+  ),
       // Add more features/screens here
       // Example:
       // _AdminFeature(title: 'Reports', icon: Icons.insert_chart, screen: ReportsScreen()),
