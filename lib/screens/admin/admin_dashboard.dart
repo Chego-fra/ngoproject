@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:localloop/charts/chart.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
-import 'role_count.dart'; // Your RoleCount class
+import 'package:localloop/charts/chart.dart';
+import 'role_count.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -13,24 +14,6 @@ class AdminHome extends StatefulWidget {
 }
 
 class _AdminHomeState extends State<AdminHome> {
-  Future<List<RoleCount>> fetchRoleCounts() async {
-    final snapshot = await FirebaseFirestore.instance.collection('users').get();
-    final Map<String, int> roleMap = {
-      'admin': 0,
-      'ngo': 0,
-      'voluteer': 0,
-    };
-
-    for (final doc in snapshot.docs) {
-      final role = doc['role'] as String;
-      if (roleMap.containsKey(role)) {
-        roleMap[role] = roleMap[role]! + 1;
-      }
-    }
-
-    return roleMap.entries.map((e) => RoleCount(role: e.key, count: e.value)).toList();
-  }
-
   Future<void> updateUserRole(String userId, String newRole) async {
     await FirebaseFirestore.instance.collection('users').doc(userId).update({
       'role': newRole,
@@ -40,12 +23,38 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+  Future<void> deleteUser(String userId) async {
+    await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('User deleted')),
+    );
+  }
+
+  List<RoleCount> computeRoleCounts(List<QueryDocumentSnapshot> docs) {
+    final Map<String, int> roleMap = {
+      'admin': 0,
+      'ngo': 0,
+      'voluteer': 0, // typo preserved from original
+    };
+
+    for (final doc in docs) {
+      final role = doc['role'] as String;
+      if (roleMap.containsKey(role)) {
+        roleMap[role] = roleMap[role]! + 1;
+      }
+    }
+
+    return roleMap.entries
+        .map((e) => RoleCount(role: e.key, count: e.value))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple.withOpacity(0.8),
+        backgroundColor: Color(0xFF43cea2),
         elevation: 0,
         title: const Text("Admin Dashboard"),
         actions: [
@@ -67,37 +76,30 @@ class _AdminHomeState extends State<AdminHome> {
           ),
         ),
         padding: const EdgeInsets.fromLTRB(12, 70, 12, 12),
-        child: Column(
-          children: [
-            // Chart Section
-            FutureBuilder<List<RoleCount>>(
-              future: fetchRoleCounts(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return Container(
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('users').snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+            final users = snapshot.data!.docs;
+            final roleCounts = computeRoleCounts(users);
+
+            return Column(
+              children: [
+                // Live Chart
+                Container(
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.all(16),
-                  child: Chart(roleCounts: snapshot.data!),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
+                  child: Chart(roleCounts: roleCounts),
+                ),
+                const SizedBox(height: 20),
 
-            // Users List
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
-                  final users = snapshot.data!.docs;
-
-                  return ListView.builder(
+                // Users List
+                Expanded(
+                  child: ListView.builder(
                     itemCount: users.length,
                     itemBuilder: (context, index) {
                       final user = users[index];
@@ -105,47 +107,65 @@ class _AdminHomeState extends State<AdminHome> {
                       final role = user['role'];
                       final userId = user.id;
 
-                      return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          title: Text(
-                            email,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            'Role: $role',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          trailing: DropdownButton<String>(
-                            value: role,
-                            dropdownColor: Colors.deepPurple,
-                            iconEnabledColor: Colors.white,
-                            style: const TextStyle(color: Colors.white),
-                            items: const [
-                              DropdownMenuItem(value: 'voluteer', child: Text('voluteer')),
-                              DropdownMenuItem(value: 'ngo', child: Text('NGO')),
-                              DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        child: Slidable(
+                          key: ValueKey(userId),
+                          endActionPane: ActionPane(
+                            motion: const DrawerMotion(),
+                            children: [
+                              SlidableAction(
+                                onPressed: (_) => deleteUser(userId),
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                icon: Icons.delete,
+                                label: 'Delete',
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ],
-                            onChanged: (newRole) {
-                              if (newRole != null && newRole != role) {
-                                updateUserRole(userId, newRole);
-                              }
-                            },
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              title: Text(
+                                email,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                'Role: $role',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                              trailing: DropdownButton<String>(
+                                value: role,
+                                dropdownColor: Colors.deepPurple,
+                                iconEnabledColor: Colors.white,
+                                style: const TextStyle(color: Colors.white),
+                                items: const [
+                                  DropdownMenuItem(value: 'voluteer', child: Text('voluteer')),
+                                  DropdownMenuItem(value: 'ngo', child: Text('NGO')),
+                                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                                ],
+                                onChanged: (newRole) {
+                                  if (newRole != null && newRole != role) {
+                                    updateUserRole(userId, newRole);
+                                  }
+                                },
+                              ),
+                            ),
                           ),
                         ),
                       );
                     },
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
