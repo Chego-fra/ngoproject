@@ -4,7 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 import 'package:localloop/charts/chart.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'role_count.dart';
+
+
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -37,7 +41,7 @@ class _AdminHomeState extends State<AdminHome> {
     final Map<String, int> roleMap = {
       'admin': 0,
       'ngo': 0,
-      'voluteer': 0, // typo preserved from original
+      'voluteer': 0, // typo preserved
     };
 
     for (final doc in docs) {
@@ -52,6 +56,47 @@ class _AdminHomeState extends State<AdminHome> {
         .toList();
   }
 
+  Future<void> generatePdfReport() async {
+    final pdf = pw.Document();
+
+    // Fetch users from Firestore
+    final snapshot = await FirebaseFirestore.instance.collection('users').get();
+
+    // Create table rows with email and role
+    final rows = snapshot.docs.map((doc) {
+      final email = doc['email'] ?? 'N/A';
+      final role = doc['role'] ?? 'N/A';
+      return [email, role];
+    }).toList();
+
+    // Add content to PDF
+    pdf.addPage(
+      pw.Page(
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Users Report',
+                  style: pw.TextStyle(
+                      fontSize: 24, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 20),
+              pw.Table.fromTextArray(
+                headers: ['Email', 'Role'],
+                data: rows,
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                cellAlignment: pw.Alignment.centerLeft,
+                cellPadding: const pw.EdgeInsets.all(8),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    // Open print/save dialog
+    await Printing.layoutPdf(onLayout: (format) => pdf.save());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,6 +106,11 @@ class _AdminHomeState extends State<AdminHome> {
         elevation: 0,
         title: const Text("Admin Dashboard"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Generate PDF Report',
+            onPressed: generatePdfReport,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -82,7 +132,9 @@ class _AdminHomeState extends State<AdminHome> {
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('users').snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
             final users = snapshot.data!.docs;
             final roleCounts = computeRoleCounts(users);
@@ -98,7 +150,8 @@ class _AdminHomeState extends State<AdminHome> {
               children: [
                 // Search Bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: TextField(
                     controller: searchController,
                     onChanged: (value) {
@@ -143,7 +196,8 @@ class _AdminHomeState extends State<AdminHome> {
                       final userId = user.id;
 
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 16),
                         child: Slidable(
                           key: ValueKey(userId),
                           endActionPane: ActionPane(
@@ -163,13 +217,17 @@ class _AdminHomeState extends State<AdminHome> {
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.4), width: 1),
                             ),
                             child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
                               title: Text(
                                 email,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
                               ),
                               subtitle: Text(
                                 'Role: $role',
@@ -181,7 +239,8 @@ class _AdminHomeState extends State<AdminHome> {
                                 iconEnabledColor: Colors.white,
                                 style: const TextStyle(color: Colors.white),
                                 items: const [
-                                  DropdownMenuItem(value: 'voluteer', child: Text('voluteer')),
+                                  DropdownMenuItem(
+                                      value: 'voluteer', child: Text('voluteer')),
                                   DropdownMenuItem(value: 'ngo', child: Text('NGO')),
                                   DropdownMenuItem(value: 'admin', child: Text('Admin')),
                                 ],

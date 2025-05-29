@@ -14,11 +14,11 @@ class Chart extends StatelessWidget {
   Color getRoleColor(String role) {
     switch (role) {
       case 'admin':
-        return Colors.redAccent;
+        return Colors.yellow;
       case 'ngo':
         return Colors.greenAccent;
       case 'voluteer':
-        return Colors.blueAccent;
+        return Colors.black;
       default:
         return Colors.grey;
     }
