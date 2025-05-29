@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:localloop/screens/admin/role_count.dart';
 import 'chart_bar.dart';
 
-
 class Chart extends StatelessWidget {
   const Chart({super.key, required this.roleCounts});
 
@@ -10,6 +9,19 @@ class Chart extends StatelessWidget {
 
   double get maxRoleCount {
     return roleCounts.map((rc) => rc.count).fold(0, (prev, e) => e > prev ? e : prev).toDouble();
+  }
+
+  Color getRoleColor(String role) {
+    switch (role) {
+      case 'admin':
+        return Colors.redAccent;
+      case 'ngo':
+        return Colors.greenAccent;
+      case 'voluteer':
+        return Colors.blueAccent;
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
@@ -32,16 +44,19 @@ class Chart extends StatelessWidget {
       ),
       child: Column(
         children: [
+          // Chart Bars
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: roleCounts.map((role) {
                 final fill = role.count == 0 ? 0.0 : role.count / maxRoleCount;
-                return ChartBar(fill: fill);
+                final color = getRoleColor(role.role);
+                return ChartBar(fill: fill, color: color, count: role.count);
               }).toList(),
             ),
           ),
           const SizedBox(height: 12),
+          // Labels
           Row(
             children: roleCounts.map((role) {
               return Expanded(
@@ -52,7 +67,7 @@ class Chart extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                      color: getRoleColor(role.role),
                     ),
                   ),
                 ),

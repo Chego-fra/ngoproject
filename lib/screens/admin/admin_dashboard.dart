@@ -14,6 +14,9 @@ class AdminHome extends StatefulWidget {
 }
 
 class _AdminHomeState extends State<AdminHome> {
+  final TextEditingController searchController = TextEditingController();
+  String searchQuery = '';
+
   Future<void> updateUserRole(String userId, String newRole) async {
     await FirebaseFirestore.instance.collection('users').doc(userId).update({
       'role': newRole,
@@ -54,7 +57,7 @@ class _AdminHomeState extends State<AdminHome> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Color(0xFF43cea2),
+        backgroundColor: const Color(0xFF43cea2),
         elevation: 0,
         title: const Text("Admin Dashboard"),
         actions: [
@@ -84,8 +87,40 @@ class _AdminHomeState extends State<AdminHome> {
             final users = snapshot.data!.docs;
             final roleCounts = computeRoleCounts(users);
 
+            // Apply search filtering
+            final filteredUsers = users.where((user) {
+              final email = (user['email'] as String).toLowerCase();
+              final role = (user['role'] as String).toLowerCase();
+              return email.contains(searchQuery) || role.contains(searchQuery);
+            }).toList();
+
             return Column(
               children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value.toLowerCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search by email or role',
+                      fillColor: Colors.white.withOpacity(0.2),
+                      filled: true,
+                      prefixIcon: const Icon(Icons.search, color: Colors.white),
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+
                 // Live Chart
                 Container(
                   decoration: BoxDecoration(
@@ -100,9 +135,9 @@ class _AdminHomeState extends State<AdminHome> {
                 // Users List
                 Expanded(
                   child: ListView.builder(
-                    itemCount: users.length,
+                    itemCount: filteredUsers.length,
                     itemBuilder: (context, index) {
-                      final user = users[index];
+                      final user = filteredUsers[index];
                       final email = user['email'];
                       final role = user['role'];
                       final userId = user.id;

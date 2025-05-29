@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:localloop/screens/volunteer/volunteer_event_list_screen.dart';
 
 class VolunteerHome extends StatelessWidget {
   const VolunteerHome({super.key});
@@ -8,6 +9,8 @@ class VolunteerHome extends StatelessWidget {
   Widget build(BuildContext context) {
     return  Scaffold(
       appBar: AppBar(title: const Text("Voluteer Home"),
+      backgroundColor: Color(0xFF43cea2),
+      elevation: 0,
       actions:[
     IconButton(
       icon: const Icon(Icons.logout),
@@ -21,7 +24,7 @@ class VolunteerHome extends StatelessWidget {
       
       
       ),
-      body: const Center(child: Text("Welcome, Voluteer!")),
+       body: VolunteerEventListScreen(),
     );
   }
 }
