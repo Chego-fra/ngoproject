@@ -8,8 +8,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'role_count.dart';
 
-
-
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
 
@@ -200,6 +198,23 @@ class _AdminHomeState extends State<AdminHome> {
                             vertical: 8, horizontal: 16),
                         child: Slidable(
                           key: ValueKey(userId),
+
+                          // Add slide action on left side
+                          startActionPane: ActionPane(
+                            motion: const DrawerMotion(),
+                            children: [
+                              SlidableAction(
+                                onPressed: (_) => deleteUser(userId),
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                icon: Icons.delete,
+                                label: 'Delete',
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ],
+                          ),
+
+                          // Add slide action on right side
                           endActionPane: ActionPane(
                             motion: const DrawerMotion(),
                             children: [
@@ -213,6 +228,7 @@ class _AdminHomeState extends State<AdminHome> {
                               ),
                             ],
                           ),
+
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
