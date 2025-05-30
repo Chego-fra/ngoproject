@@ -12,7 +12,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
-  final String defaultRole = 'voluteer';
+  final nameCtrl = TextEditingController();
+  final String defaultRole = 'volunteer';
 
   bool isLoading = false;
 
@@ -25,10 +26,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: passCtrl.text.trim(),
       );
 
+      // 🔍 Debug Print
+      print('Registering: name=${nameCtrl.text}, email=${emailCtrl.text}');
+
       await userCred.user!.sendEmailVerification();
 
+      // ✅ Store additional user data
       await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).set({
         'email': emailCtrl.text.trim(),
+        'name': nameCtrl.text.trim(),
         'role': defaultRole,
       });
 
@@ -64,54 +70,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             child: Center(
-              child: Card(
-                elevation: 10,
-                margin: const EdgeInsets.symmetric(horizontal: 30),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Register',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: emailCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: Icon(Icons.email),
-                          border: OutlineInputBorder(),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: Card(
+                  elevation: 10,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Register',
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: passCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: Icon(Icons.lock),
-                          border: OutlineInputBorder(),
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: nameCtrl,
+                          keyboardType: TextInputType.name,
+                          decoration: const InputDecoration(
+                            labelText: 'Full Name',
+                            prefixIcon: Icon(Icons.person),
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                        obscureText: true,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: registerUser,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.email),
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                        child: const Text('Register'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: const Text("Already have an account? Login"),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: passCtrl,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: Icon(Icons.lock),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: registerUser,
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Register'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text("Already have an account? Login"),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class Event {
   final String id;
   final String title;
@@ -11,6 +10,7 @@ class Event {
   final List<String> participantIds;
   final int maxVolunteers;
   final String? bannerImageUrl;
+  final int duration; // ✅ New field for volunteer hours
 
   Event({
     required this.id,
@@ -22,6 +22,7 @@ class Event {
     this.participantIds = const [],
     this.maxVolunteers = 50,
     this.bannerImageUrl,
+    this.duration = 0, // ✅ Default to 0 if not provided
   });
 
   factory Event.fromMap(Map<String, dynamic> data, String docId) {
@@ -35,6 +36,7 @@ class Event {
       participantIds: List<String>.from(data['participantIds'] ?? []),
       maxVolunteers: data['maxVolunteers'] ?? 50,
       bannerImageUrl: data['bannerImageUrl'],
+      duration: data['duration'] ?? 0, // ✅ Map it from Firestore
     );
   }
 
@@ -48,6 +50,7 @@ class Event {
       'participantIds': participantIds,
       'maxVolunteers': maxVolunteers,
       'bannerImageUrl': bannerImageUrl,
+      'duration': duration, // ✅ Include when saving to Firestore
     };
   }
 }

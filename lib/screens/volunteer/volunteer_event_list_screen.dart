@@ -3,8 +3,35 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class VolunteerEventListScreen extends StatelessWidget {
+class VolunteerEventListScreen extends StatefulWidget {
   const VolunteerEventListScreen({super.key});
+
+  @override
+  State<VolunteerEventListScreen> createState() => _VolunteerEventListScreenState();
+}
+
+class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
+  String _searchText = '';
+  List<QueryDocumentSnapshot> _allEvents = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('events')
+        .orderBy('date')
+        .get();
+
+    setState(() {
+      _allEvents = snapshot.docs;
+      _isLoading = false;
+    });
+  }
 
   Future<void> _applyToEvent(BuildContext context, String eventId) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -12,7 +39,6 @@ class VolunteerEventListScreen extends StatelessWidget {
 
     final applications = FirebaseFirestore.instance.collection('event_applications');
 
-    // Check if user has already applied
     final existing = await applications
         .where('eventId', isEqualTo: eventId)
         .where('volunteerId', isEqualTo: user.uid)
@@ -39,10 +65,10 @@ class VolunteerEventListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final events = FirebaseFirestore.instance
-        .collection('events')
-        .orderBy('date', descending: false)
-        .snapshots();
+    final filteredEvents = _allEvents.where((doc) {
+      final title = (doc['title'] as String).toLowerCase();
+      return title.contains(_searchText.toLowerCase());
+    }).toList();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -54,59 +80,69 @@ class VolunteerEventListScreen extends StatelessWidget {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: StreamBuilder<QuerySnapshot>(
-          stream: events,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Colors.white));
-            }
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+            : ListView.builder(
+                padding: const EdgeInsets.only(top: 10, bottom: 80),
+                itemCount: filteredEvents.length + 2,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
+                      child: Text(
+                        'Available Events',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  } else if (index == 1) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search by event name...',
+                          filled: true,
+                          fillColor: Colors.white,
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() => _searchText = value);
+                        },
+                      ),
+                    );
+                  }
 
-            final eventDocs = snapshot.data?.docs ?? [];
+                  final doc = filteredEvents[index - 2];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final eventId = doc.id;
 
-            return ListView.builder(
-              padding: const EdgeInsets.only(top: 10, bottom: 80),
-              itemCount: eventDocs.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 20),
-                    child: Text(
-                      'Available Events',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                  return Card(
+                    color: Colors.white.withOpacity(0.9),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    elevation: 4,
+                    child: ListTile(
+                      title: Text(data['title']),
+                      subtitle: Text(
+                        '${DateFormat.yMMMEd().format((data['date'] as Timestamp).toDate())} • ${data['location']}',
+                      ),
+                      trailing: ElevatedButton(
+                        onPressed: () => _applyToEvent(context, eventId),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF43cea2),
+                        ),
+                        child: const Text("Register", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   );
-                }
-
-                final data = eventDocs[index - 1].data() as Map<String, dynamic>;
-                final eventId = eventDocs[index - 1].id;
-
-                return Card(
-                  color: Colors.white.withOpacity(0.9),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  elevation: 4,
-                  child: ListTile(
-                    title: Text(data['title']),
-                    subtitle: Text(
-                      '${DateFormat.yMMMEd().format((data['date'] as Timestamp).toDate())} • ${data['location']}',
-                    ),
-                    trailing: ElevatedButton(
-                      onPressed: () => _applyToEvent(context, eventId),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF185a9d),
-                      ),
-                      child: const Text("Apply", style: TextStyle(color: Colors.white)),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        ),
+                },
+              ),
       ),
     );
   }
