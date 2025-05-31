@@ -43,7 +43,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                 trailing: DropdownButton<String>(
                   value: role,
                   items: const [
-                    DropdownMenuItem(value: 'voluteer', child: Text('Volunteer')),
+                    DropdownMenuItem(value: 'volunteer', child: Text('volunteer')),
                     DropdownMenuItem(value: 'ngo', child: Text('Ngo')),
                     DropdownMenuItem(value: 'admin', child: Text('Admin')),
                   ],

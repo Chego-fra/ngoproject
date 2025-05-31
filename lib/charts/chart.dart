@@ -17,7 +17,7 @@ class Chart extends StatelessWidget {
         return Colors.yellow;
       case 'ngo':
         return Colors.greenAccent;
-      case 'voluteer':
+      case 'volunteer':
         return Colors.black;
       default:
         return Colors.grey;

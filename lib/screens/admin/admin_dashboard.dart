@@ -39,7 +39,7 @@ class _AdminHomeState extends State<AdminHome> {
     final Map<String, int> roleMap = {
       'admin': 0,
       'ngo': 0,
-      'voluteer': 0, // typo preserved
+      'volunteer': 0, // typo preserved
     };
 
     for (final doc in docs) {
@@ -256,7 +256,7 @@ class _AdminHomeState extends State<AdminHome> {
                                 style: const TextStyle(color: Colors.white),
                                 items: const [
                                   DropdownMenuItem(
-                                      value: 'voluteer', child: Text('voluteer')),
+                                      value: 'volunteer', child: Text('Volunteer')),
                                   DropdownMenuItem(value: 'ngo', child: Text('NGO')),
                                   DropdownMenuItem(value: 'admin', child: Text('Admin')),
                                 ],

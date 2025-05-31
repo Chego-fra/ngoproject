@@ -8,7 +8,7 @@ class VolunteerHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return  Scaffold(
-      appBar: AppBar(title: const Text("Voluteer Home"),
+      appBar: AppBar(title: const Text("Volunteer Home"),
       backgroundColor: Color(0xFF43cea2),
       elevation: 0,
       actions:[

@@ -71,17 +71,17 @@ class _VolunteerApplicantsScreenState extends State<VolunteerApplicantsScreen> {
                       .doc(data['volunteerId'])
                       .get(),
                   builder: (context, userSnapshot) {
-                    if (!userSnapshot.hasData) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Card(
-                          child: ListTile(title: Text('Loading...')),
-                        ),
-                      );
-                    }
+if (!userSnapshot.hasData || userSnapshot.data?.data() == null) {
+  return const Padding(
+    padding: EdgeInsets.symmetric(vertical: 8),
+    child: Card(
+      child: ListTile(title: Text('Volunteer data not found')),
+    ),
+  );
+}
 
-                    final user = userSnapshot.data!;
-                    final userData = user.data() as Map<String, dynamic>;
+final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
+
 
                     final userName = (userData['name'] as String?)?.trim() ?? 'Unnamed Volunteer';
 
