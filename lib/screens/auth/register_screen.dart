@@ -26,16 +26,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: passCtrl.text.trim(),
       );
 
-      // 🔍 Debug Print
-      print('Registering: name=${nameCtrl.text}, email=${emailCtrl.text}');
-
       await userCred.user!.sendEmailVerification();
 
-      // ✅ Store additional user data
-      await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).set({
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid);
+
+      // Store user info
+      await userDoc.set({
         'email': emailCtrl.text.trim(),
         'name': nameCtrl.text.trim(),
         'role': defaultRole,
+      });
+
+      // Create welcome notification
+      await userDoc.collection('notifications').add({
+        'message': 'Welcome to the app! Your volunteer account has been created.',
+        'seen': false,
+        'timestamp': Timestamp.now(),
       });
 
       setState(() => isLoading = false);

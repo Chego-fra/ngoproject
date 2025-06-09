@@ -51,6 +51,10 @@ dependencies:
   path_provider: ^2.1.5
   open_file: ^3.5.10
   universal_html: ^2.2.4
+  http: ^1.4.0
+  googleapis_auth: ^2.0.0
+  googleapis: ^14.0.0
+  fl_chart: ^1.0.0
 
 
 dev_dependencies:
@@ -79,6 +83,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/service_account.json
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart'; // Add this dependency in pubspec.yaml
 
 import 'event_form_screen.dart';
 import 'volunteer_application_screen.dart';
@@ -21,6 +22,51 @@ class _EventListScreenState extends State<EventListScreen> {
   void dispose() {
     searchController.dispose();
     super.dispose();
+  }
+
+  void _showEventDetails(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final date = (data['date'] as Timestamp).toDate();
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(data['title'] ?? 'No Title'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow("Description", data['description']),
+                _buildDetailRow("Location", data['location']),
+                _buildDetailRow("Date", DateFormat.yMMMd().format(date)),
+                _buildDetailRow("Max Volunteers", '${data['maxVolunteers'] ?? 50}'),
+                _buildDetailRow("Duration (hrs)", '${data['duration'] ?? 0}'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Close"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("$label: ",
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          Expanded(child: Text(value ?? '')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -47,7 +93,6 @@ class _EventListScreenState extends State<EventListScreen> {
         ),
         child: Column(
           children: [
-            // Search bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: TextField(
@@ -60,7 +105,7 @@ class _EventListScreenState extends State<EventListScreen> {
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Search by event name',
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: const TextStyle(color: Colors.white70),
                   prefixIcon: const Icon(Icons.search, color: Colors.white),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.2),
@@ -71,8 +116,6 @@ class _EventListScreenState extends State<EventListScreen> {
                 ),
               ),
             ),
-
-            // StreamBuilder inside Expanded so it takes remaining space
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -98,7 +141,6 @@ class _EventListScreenState extends State<EventListScreen> {
 
                   final events = snapshot.data?.docs ?? [];
 
-                  // Filter events by search query on title (case insensitive)
                   final filteredEvents = events.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final title = (data['title'] as String).toLowerCase();
@@ -111,8 +153,7 @@ class _EventListScreenState extends State<EventListScreen> {
                     itemBuilder: (context, index) {
                       if (index == 0) {
                         return const Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+                          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
                           child: Text(
                             'My Events',
                             style: TextStyle(
@@ -124,7 +165,8 @@ class _EventListScreenState extends State<EventListScreen> {
                         );
                       }
 
-                      final data = filteredEvents[index - 1].data() as Map<String, dynamic>;
+                      final data =
+                          filteredEvents[index - 1].data() as Map<String, dynamic>;
                       final docId = filteredEvents[index - 1].id;
 
                       return Card(
@@ -142,32 +184,59 @@ class _EventListScreenState extends State<EventListScreen> {
                             DateFormat.yMMMEd()
                                 .format((data['date'] as Timestamp).toDate()),
                           ),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => EventFormScreen(eventId: docId)),
-                                );
-                              } else if (value == 'delete') {
-                                FirebaseFirestore.instance
-                                    .collection('events')
-                                    .doc(docId)
-                                    .delete();
-                              } else if (value == 'volunteers') {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) =>
-                                          VolunteerApplicantsScreen(eventId: docId)),
-                                );
-                              }
-                            },
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(value: 'delete', child: Text('Delete')),
-                              PopupMenuItem(value: 'volunteers', child: Text('Applicants')),
+                          trailing: Wrap(
+                            spacing: 8,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_red_eye,
+                                    color: Colors.blueAccent),
+                                onPressed: () => _showEventDetails(data),
+                              ),
+                              PopupMenuButton<String>(
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            EventFormScreen(eventId: docId),
+                                      ),
+                                    );
+                                  } else if (value == 'delete') {
+                                    FirebaseFirestore.instance
+                                        .collection('events')
+                                        .doc(docId)
+                                        .delete();
+                                  } else if (value == 'volunteers') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            VolunteerApplicantsScreen(eventId: docId),
+                                      ),
+                                    );
+                                  } else if (value == 'ratings') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EventRatingScreen(eventId: docId),
+                                      ),
+                                    );
+                                  }
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(
+                                      value: 'edit', child: Text('Edit')),
+                                  PopupMenuItem(
+                                      value: 'delete', child: Text('Delete')),
+                                  PopupMenuItem(
+                                      value: 'volunteers',
+                                      child: Text('Applicants')),
+                                  PopupMenuItem(
+                                      value: 'ratings',
+                                      child: Text('View Ratings')),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -192,5 +261,126 @@ class _EventListScreenState extends State<EventListScreen> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+}
+
+// NEW: EventRatingScreen showing pie chart of ratings
+
+class EventRatingScreen extends StatelessWidget {
+  final String eventId;
+  const EventRatingScreen({super.key, required this.eventId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Event Ratings')),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('events')
+            .doc(eventId)
+            .collection('ratings')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No ratings yet'));
+          }
+
+          final ratingsDocs = snapshot.data!.docs;
+
+          // Count how many of each rating (1 to 5)
+          Map<int, int> ratingCounts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+          for (var doc in ratingsDocs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final rating = (data['rating'] ?? 0) as int;
+            if (rating >= 1 && rating <= 5) {
+              ratingCounts[rating] = ratingCounts[rating]! + 1;
+            }
+          }
+
+          final totalRatings = ratingCounts.values.fold(0, (a, b) => a + b);
+          final averageRating = ratingCounts.entries
+                  .map((e) => e.key * e.value)
+                  .fold(0, (a, b) => a + b) /
+              totalRatings;
+
+          final List<PieChartSectionData> sections = [];
+          ratingCounts.forEach((star, count) {
+            if (count > 0) {
+              final double percentage = (count / totalRatings) * 100;
+              sections.add(
+                PieChartSectionData(
+                  value: count.toDouble(),
+                  title: '$star ★\n${percentage.toStringAsFixed(1)}%',
+                  color: _starColor(star),
+                  radius: 60,
+                  titleStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  titlePositionPercentageOffset: 0.55,
+                ),
+              );
+            }
+          });
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text(
+                  'Average Rating: ${averageRating.toStringAsFixed(2)} / 5',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 240,
+                  child: PieChart(
+                    PieChartData(
+                      sections: sections,
+                      centerSpaceRadius: 40,
+                      sectionsSpace: 2,
+                      borderData: FlBorderData(show: false),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Expanded(
+                  child: ListView(
+                    children: ratingCounts.entries.map((entry) {
+                      return ListTile(
+                        leading: Icon(Icons.star, color: _starColor(entry.key)),
+                        title: Text('${entry.key} star'),
+                        trailing: Text('${entry.value} votes'),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Color _starColor(int star) {
+    switch (star) {
+      case 1:
+        return Colors.red;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.yellow.shade700;
+      case 4:
+        return Colors.lightGreen;
+      case 5:
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
   }
 }
