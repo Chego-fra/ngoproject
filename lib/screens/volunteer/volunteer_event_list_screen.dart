@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class VolunteerEventListScreen extends StatefulWidget {
   const VolunteerEventListScreen({super.key});
@@ -19,7 +19,6 @@ class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
   bool _isLoading = true;
   int _unseenNotificationCount = 0;
   late final StreamSubscription _notificationSubscription;
-
   final Set<String> _expandedCards = {};
 
   @override
@@ -63,31 +62,29 @@ class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
         .where('seen', isEqualTo: false)
         .snapshots()
         .listen((snapshot) {
-      final count = snapshot.docs.length;
-      if (count != _unseenNotificationCount) {
-        setState(() {
-          _unseenNotificationCount = count;
-        });
-      }
+      setState(() {
+        _unseenNotificationCount = snapshot.docs.length;
+      });
     });
   }
 
-  static const String _serverKey = 'YOUR_SERVER_KEY_HERE';
-
-  Future<void> sendPushMessage(String token, String title, String body) async {
-    if (token.isEmpty) return;
-
+  Future<void> sendPushMessage(
+    String token,
+    String title,
+    String body, {
+    String? eventId,
+  }) async {
     try {
       final response = await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        Uri.parse('http://localhost:3000'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'key=$_serverKey',
         },
         body: jsonEncode({
-          'to': token,
-          'notification': {'title': title, 'body': body},
-          'priority': 'high',
+          'token': token,
+          'title': title,
+          'body': body,
+          if (eventId != null) 'eventId': eventId,
         }),
       );
 
@@ -157,6 +154,7 @@ class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
         fcmToken,
         'New Volunteer Application',
         'Someone registered for "$eventTitle".',
+        eventId: eventId,
       );
     }
 
@@ -165,7 +163,6 @@ class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
     );
   }
 
-  // Star rating widget
   Widget starRating({required int rating, required ValueChanged<int>? onRatingChanged}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -263,7 +260,26 @@ class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
                   final isExpanded = _expandedCards.contains(eventId);
 
                   return GestureDetector(
-                    onTap: () {
+                    onTap: () async {
+                      final user = FirebaseAuth.instance.currentUser;
+                      final willExpand = !_expandedCards.contains(eventId);
+
+                      if (user != null && willExpand) {
+                        final notifications = await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(user.uid)
+                            .collection('notifications')
+                            .where('eventId', isEqualTo: eventId)
+                            .where('seen', isEqualTo: false)
+                            .get();
+
+                        final batch = FirebaseFirestore.instance.batch();
+                        for (final doc in notifications.docs) {
+                          batch.update(doc.reference, {'seen': true});
+                        }
+                        await batch.commit();
+                      }
+
                       setState(() {
                         if (_expandedCards.contains(eventId)) {
                           _expandedCards.remove(eventId);
@@ -331,9 +347,6 @@ class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
                               child: const Text('Register'),
                             ),
                             const SizedBox(height: 16),
-
-                            // *** Star rating section ***
-
                             FutureBuilder<DocumentSnapshot>(
                               future: FirebaseFirestore.instance
                                   .collection('events')
@@ -368,12 +381,10 @@ class _VolunteerEventListScreenState extends State<VolunteerEventListScreen> {
                                           'rating': newRating,
                                           'ratedAt': Timestamp.now(),
                                         });
-                                        setState(() {}); // Refresh UI
+                                        setState(() {});
                                       },
                                     ),
                                     const SizedBox(height: 10),
-
-                                    // Average rating display
                                     StreamBuilder<QuerySnapshot>(
                                       stream: FirebaseFirestore.instance
                                           .collection('events')

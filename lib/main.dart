@@ -18,7 +18,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 /// Background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Handling background message: ${message.messageId}");
+  print("Handling background message: \${message.messageId}");
 }
 
 void main() async {
@@ -38,7 +38,14 @@ Future<void> _initializeLocalNotifications() async {
     android: initializationSettingsAndroid,
   );
 
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) async {
+      final payload = response.payload;
+      print('Notification clicked. Payload: \$payload');
+      // Optional: Add logic to navigate based on payload
+    },
+  );
 }
 
 class LocalLoopApp extends StatefulWidget {
@@ -61,11 +68,11 @@ class _LocalLoopAppState extends State<LocalLoopApp> {
 
     // Request notification permissions
     NotificationSettings settings = await messaging.requestPermission();
-    print('User granted permission: ${settings.authorizationStatus}');
+    print('User granted permission: \${settings.authorizationStatus}');
 
     // Get FCM token
     String? token = await messaging.getToken();
-    print("FCM Token: $token");
+    print("FCM Token: \$token");
 
     // Save token to Firestore
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -101,7 +108,7 @@ class _LocalLoopAppState extends State<LocalLoopApp> {
 
     // When app is opened from a notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('User tapped on notification: ${message.data}');
+      print('User tapped on notification: \${message.data}');
       // You can handle navigation logic based on message.data here
     });
   }
@@ -125,23 +132,29 @@ class _LocalLoopAppState extends State<LocalLoopApp> {
         '/ngo': (context) => const NgoHome(),
         '/voluteer': (context) => const VolunteerHome(),
       },
-      home: user == null ? LoginScreen() : FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          }
+      home: user == null
+          ? LoginScreen()
+          : FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()));
+                }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const LoginScreen();
-          }
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return const LoginScreen();
+                }
 
-          final role = snapshot.data!.get('role');
-          if (role == 'admin') return const AdminHome();
-          if (role == 'ngo') return const NgoHome();
-          return const VolunteerHome();
-        },
-      ),
+                final role = snapshot.data!.get('role');
+                if (role == 'admin') return const AdminHome();
+                if (role == 'ngo') return const NgoHome();
+                return const VolunteerHome();
+              },
+            ),
     );
   }
 }

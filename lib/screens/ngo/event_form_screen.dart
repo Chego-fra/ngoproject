@@ -1,10 +1,7 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:googleapis_auth/auth_io.dart';
 import 'package:intl/intl.dart';
 
 class EventFormScreen extends StatefulWidget {
@@ -52,109 +49,58 @@ class _EventFormScreenState extends State<EventFormScreen> {
     setState(() => _isLoading = false);
   }
 
-  Future<void> sendPushMessage(String token, String title, String body) async {
-    final serviceAccount = ServiceAccountCredentials.fromJson(
-      File('assets/service_account.json').readAsStringSync(), // Make sure this file exists
-    );
+Future<void> _saveEvent() async {
+  if (!_formKey.currentState!.validate() || _selectedDate == null) return;
 
-    const scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
-    final client = await clientViaServiceAccount(serviceAccount, scopes);
+  final newEvent = {
+    'title': _titleController.text.trim(),
+    'description': _descController.text.trim(),
+    'location': _locationController.text.trim(),
+    'date': Timestamp.fromDate(_selectedDate!),
+    'maxVolunteers': int.tryParse(_maxVolunteersController.text) ?? 50,
+    'duration': int.tryParse(_durationController.text.trim()) ?? 0,
+    'organizerId': FirebaseAuth.instance.currentUser!.uid,
+  };
 
-    const projectId = 'ngoproject-2458e'; // Update this if your project ID is different
+  final collection = FirebaseFirestore.instance.collection('events');
 
-    final url = Uri.parse('https://fcm.googleapis.com/v1/projects/$projectId/messages:send');
+  if (widget.eventId == null) {
+    final eventRef = await collection.add(newEvent);
 
-    final messagePayload = {
-      "message": {
-        "token": token,
-        "notification": {
-          "title": title,
-          "body": body,
-        },
-        "android": {
-          "priority": "high"
-        },
-      }
-    };
+    // Simplified notification creation
+    final volunteersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'volunteer')
+        .get();
 
-    final response = await client.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(messagePayload),
-    );
+    final batch = FirebaseFirestore.instance.batch();
+    final title = newEvent['title'];
 
-    if (response.statusCode == 200) {
-      print("✅ Notification sent successfully");
-    } else {
-      print("❌ Failed to send notification: ${response.statusCode}");
-      print("Response: ${response.body}");
-    }
-
-    client.close();
-  }
-
-  Future<void> _saveEvent() async {
-    if (!_formKey.currentState!.validate() || _selectedDate == null) return;
-
-    setState(() => _isLoading = true);
-
-    final newEvent = {
-      'title': _titleController.text.trim(),
-      'description': _descController.text.trim(),
-      'location': _locationController.text.trim(),
-      'date': Timestamp.fromDate(_selectedDate!),
-      'maxVolunteers': int.tryParse(_maxVolunteersController.text) ?? 50,
-      'duration': int.tryParse(_durationController.text.trim()) ?? 0,
-      'organizerId': FirebaseAuth.instance.currentUser!.uid,
-    };
-
-    final collection = FirebaseFirestore.instance.collection('events');
-
-    if (widget.eventId == null) {
-      final eventRef = await collection.add(newEvent);
-
-      final volunteersSnapshot = await FirebaseFirestore.instance
+    for (final doc in volunteersSnapshot.docs) {
+      final notifRef = FirebaseFirestore.instance
           .collection('users')
-          .where('role', isEqualTo: 'volunteer')
-          .get();
+          .doc(doc.id)
+          .collection('notifications')
+          .doc();
 
-      final batch = FirebaseFirestore.instance.batch();
-      final title = newEvent['title'];
-
-      for (final doc in volunteersSnapshot.docs) {
-        final fcmToken = doc['fcmToken'];
-        final notifRef = FirebaseFirestore.instance
-            .collection('users')
-            .doc(doc.id)
-            .collection('notifications')
-            .doc();
-
-        batch.set(notifRef, {
-          'message': 'New event "$title" has been added. Check it out!',
-          'seen': false,
-          'timestamp': Timestamp.now(),
-          'eventId': eventRef.id,
-        });
-
-        if (fcmToken != null && fcmToken.toString().isNotEmpty) {
-          await sendPushMessage(
-            fcmToken,
-            'New Event: $title',
-            'An opportunity awaits! Tap to check details.',
-          );
-        }
-      }
-
-      await batch.commit();
-    } else {
-      await collection.doc(widget.eventId!).update(newEvent);
+      batch.set(notifRef, {
+        'message': 'New event "$title" has been added!',
+        'seen': false,
+        'timestamp': Timestamp.now(),
+        'eventId': eventRef.id,
+      });
     }
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.pop(context);
-    }
+    await batch.commit();
+  } else {
+    await collection.doc(widget.eventId!).update(newEvent);
   }
+
+  if (mounted) {
+    Navigator.pop(context); // Or push to EventListScreen if desired
+  }
+}
+
 
   @override
   void dispose() {
