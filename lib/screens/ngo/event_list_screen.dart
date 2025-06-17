@@ -373,7 +373,7 @@ class EventRatingScreen extends StatelessWidget {
         return Colors.red;
       case 2:
         return Colors.orange;
-      case 3:
+      case 3: 
         return Colors.yellow.shade700;
       case 4:
         return Colors.lightGreen;
