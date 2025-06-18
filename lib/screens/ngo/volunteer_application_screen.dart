@@ -16,13 +16,16 @@ class VolunteerApplicantsScreen extends StatefulWidget {
   const VolunteerApplicantsScreen({super.key, required this.eventId});
 
   @override
-  State<VolunteerApplicantsScreen> createState() => _VolunteerApplicantsScreenState();
+  State<VolunteerApplicantsScreen> createState() =>
+      _VolunteerApplicantsScreenState();
 }
 
-class _VolunteerApplicantsScreenState extends State<VolunteerApplicantsScreen> {
+class _VolunteerApplicantsScreenState
+    extends State<VolunteerApplicantsScreen> {
   @override
   Widget build(BuildContext context) {
-    final applicationsRef = FirebaseFirestore.instance.collection('event_applications');
+    final applicationsRef =
+        FirebaseFirestore.instance.collection('event_applications');
 
     return Scaffold(
       appBar: AppBar(
@@ -38,22 +41,27 @@ class _VolunteerApplicantsScreenState extends State<VolunteerApplicantsScreen> {
           ),
         ),
         child: StreamBuilder<QuerySnapshot>(
-          stream: applicationsRef.where('eventId', isEqualTo: widget.eventId).snapshots(),
+          stream: applicationsRef
+              .where('eventId', isEqualTo: widget.eventId)
+              .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return const Center(
-                child: Text('Something went wrong', style: TextStyle(color: Colors.white)),
+                child: Text('Something went wrong',
+                    style: TextStyle(color: Colors.white)),
               );
             }
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Colors.white));
+              return const Center(
+                  child: CircularProgressIndicator(color: Colors.white));
             }
 
             final apps = snapshot.data!.docs;
 
             if (apps.isEmpty) {
               return const Center(
-                child: Text('No applications yet.', style: TextStyle(color: Colors.white)),
+                child: Text('No applications yet.',
+                    style: TextStyle(color: Colors.white)),
               );
             }
 
@@ -71,19 +79,20 @@ class _VolunteerApplicantsScreenState extends State<VolunteerApplicantsScreen> {
                       .doc(data['volunteerId'])
                       .get(),
                   builder: (context, userSnapshot) {
-if (!userSnapshot.hasData || userSnapshot.data?.data() == null) {
-  return const Padding(
-    padding: EdgeInsets.symmetric(vertical: 8),
-    child: Card(
-      child: ListTile(title: Text('Volunteer data not found')),
-    ),
-  );
-}
+                    if (!userSnapshot.hasData ||
+                        userSnapshot.data?.data() == null) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Card(
+                          child: ListTile(title: Text('Volunteer data not found')),
+                        ),
+                      );
+                    }
 
-final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
-
-
-                    final userName = (userData['name'] as String?)?.trim() ?? 'Unnamed Volunteer';
+                    final userData =
+                        userSnapshot.data!.data()! as Map<String, dynamic>;
+                    final userName =
+                        (userData['name'] as String?)?.trim() ?? 'Unnamed Volunteer';
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -106,8 +115,8 @@ final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
                           ),
                           subtitle: Text('Status: ${status.toUpperCase()}'),
                           trailing: PopupMenuButton<String>(
-                            onSelected: (value) =>
-                                _handleAction(value, docId, data['volunteerId'], userName, context),
+                            onSelected: (value) => _handleAction(
+                                value, docId, data['volunteerId'], userName, context),
                             itemBuilder: (context) => [
                               if (status != 'approved')
                                 const PopupMenuItem(value: 'approve', child: Text('Approve')),
@@ -137,22 +146,19 @@ final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
     String userName,
     BuildContext context,
   ) async {
-    print('🔥 Action triggered: $action for user $userId');
-
-    final appRef = FirebaseFirestore.instance.collection('event_applications').doc(docId);
-    final eventRef = FirebaseFirestore.instance.collection('events').doc(widget.eventId);
+    final appRef =
+        FirebaseFirestore.instance.collection('event_applications').doc(docId);
+    final eventRef =
+        FirebaseFirestore.instance.collection('events').doc(widget.eventId);
 
     try {
       if (action == 'approve') {
-        print('🔨 Updating status to approved');
         await appRef.update({'status': 'approved'});
-        print('✅ Status updated in Firestore');
 
         final eventSnapshot = await eventRef.get();
         final eventData = eventSnapshot.data();
 
         if (eventData == null) {
-          print('⚠️ Event data is null');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to load event data')),
           );
@@ -162,22 +168,20 @@ final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
         final hoursCompleted = eventData['duration'] ?? 0;
         final eventTitle = eventData['title'] ?? 'Event';
 
-        print('📝 Generating certificate...');
-        final pdfBytes = await _generateCertificatePdf(userName, eventTitle, hoursCompleted);
+        final pdfBytes =
+            await _generateCertificatePdf(userName, eventTitle, hoursCompleted);
 
         if (kIsWeb) {
-          print('🌐 Saving and opening PDF on Web...');
-          await saveAndOpenPdfWeb(pdfBytes, 'certificate_${userId}_${widget.eventId}.pdf');
+          await saveAndOpenPdfWeb(
+              pdfBytes, 'certificate_${userId}_${widget.eventId}.pdf');
         } else {
-          print('💾 Saving certificate locally...');
-          final localPath = await _saveCertificateLocally(pdfBytes, userId, widget.eventId);
-          print('📂 Certificate saved at: $localPath');
-
+          final localPath =
+              await _saveCertificateLocally(pdfBytes, userId, widget.eventId);
           await OpenFile.open(localPath);
-          print('📄 Opened file using OpenFile');
         }
 
-        final certRef = FirebaseFirestore.instance.collection('certificates').doc();
+        final certRef =
+            FirebaseFirestore.instance.collection('certificates').doc();
         await certRef.set({
           'userId': userId,
           'eventId': widget.eventId,
@@ -186,8 +190,6 @@ final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
           'hoursCompleted': hoursCompleted,
           'localPath': kIsWeb ? null : 'certificate_${userId}_${widget.eventId}.pdf',
         });
-
-        print('🎉 Certificate metadata saved in Firestore');
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Volunteer approved and certificate saved')),
@@ -244,32 +246,66 @@ final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
       String volunteerName, String eventTitle, int hours) async {
     final pdf = pw.Document();
 
+    final bgColor = PdfColor.fromInt(0xFFFCF8F3);
+    final borderColor = PdfColor.fromInt(0xFF185a9d);
+    final accentColor = PdfColor.fromInt(0xFF43cea2);
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return pw.Center(
+        build: (context) {
+          return pw.Container(
+            decoration: pw.BoxDecoration(
+              color: bgColor,
+              border: pw.Border.all(color: borderColor, width: 4),
+            ),
+            padding: const pw.EdgeInsets.all(32),
             child: pw.Column(
               mainAxisAlignment: pw.MainAxisAlignment.center,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Text('Certificate of Participation',
-                    style: pw.TextStyle(fontSize: 30, fontWeight: pw.FontWeight.bold)),
+                pw.Text('CERTIFICATE OF PARTICIPATION',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 28,
+                      fontWeight: pw.FontWeight.bold,
+                      color: borderColor,
+                    )),
                 pw.SizedBox(height: 30),
-                pw.Text('This certificate is proudly presented to',
-                    style: pw.TextStyle(fontSize: 18)),
-                pw.SizedBox(height: 20),
-                pw.Text(volunteerName.isNotEmpty ? volunteerName : 'Unnamed Volunteer',
-                    style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 20),
-                pw.Text('For volunteering in the event', style: pw.TextStyle(fontSize: 18)),
+                pw.Text('This is proudly presented to',
+                    style: pw.TextStyle(fontSize: 18, color: PdfColors.black)),
+                pw.SizedBox(height: 15),
+                pw.Text(volunteerName,
+                    style: pw.TextStyle(
+                      fontSize: 26,
+                      fontWeight: pw.FontWeight.bold,
+                      color: accentColor,
+                    )),
+                pw.SizedBox(height: 15),
+                pw.Text(
+                    'For their invaluable support and volunteer work in the event:',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: 16)),
                 pw.SizedBox(height: 10),
                 pw.Text(eventTitle,
-                    style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                    style: pw.TextStyle(
+                      fontSize: 22,
+                      fontWeight: pw.FontWeight.bold,
+                      color: borderColor,
+                    )),
                 pw.SizedBox(height: 20),
-                pw.Text('Duration: $hours hours', style: pw.TextStyle(fontSize: 16)),
+                pw.Text('Duration: $hours hours',
+                    style: pw.TextStyle(fontSize: 16)),
                 pw.SizedBox(height: 50),
-                pw.Text('Issued on: ${DateTime.now().toLocal().toString().split(' ')[0]}',
-                    style: pw.TextStyle(fontSize: 14, fontStyle: pw.FontStyle.italic)),
+                pw.Text(
+                    'Issued on: ${DateTime.now().toLocal().toString().split(' ')[0]}',
+                    style: pw.TextStyle(
+                        fontSize: 12, fontStyle: pw.FontStyle.italic)),
+                pw.Spacer(),
+                pw.Divider(color: borderColor),
+                pw.Text('Organization Name',
+                    style:
+                        pw.TextStyle(fontSize: 14, color: PdfColors.grey600)),
               ],
             ),
           );
@@ -325,11 +361,7 @@ final userData = userSnapshot.data!.data()! as Map<String, dynamic>;
       ..download = filename;
 
     html.document.body!.append(anchor);
-
-    // Trigger download
     anchor.click();
-
-    // Cleanup
     html.document.body!.children.remove(anchor);
     html.Url.revokeObjectUrl(url);
   }

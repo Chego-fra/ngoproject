@@ -39,7 +39,7 @@ class _AdminHomeState extends State<AdminHome> {
     final Map<String, int> roleMap = {
       'admin': 0,
       'ngo': 0,
-      'volunteer': 0, // typo preserved
+      'volunteer': 0, 
     };
 
     for (final doc in docs) {
